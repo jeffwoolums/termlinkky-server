@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """
-TermLinky Server - Mac companion for the TermLinky iOS app.
-Provides secure WebSocket terminal access with certificate pinning.
+TermLinky Server - Mac/Windows/Linux companion for TermLinky mobile app.
+Provides secure WebSocket terminal access over Tailscale.
+
+Requirements:
+- Tailscale installed and connected
+- Python 3.9+
 """
 
 import asyncio
@@ -10,7 +14,6 @@ import pty
 import select
 import signal
 import ssl
-import struct
 import subprocess
 import sys
 from pathlib import Path
@@ -24,11 +27,39 @@ except ImportError:
     from aiohttp import web
     import aiohttp
 
-HOST = "0.0.0.0"
 PORT = 8443
 CERT_DIR = Path(__file__).parent / "certs"
 CERT_FILE = CERT_DIR / "server.crt"
 KEY_FILE = CERT_DIR / "server.key"
+
+
+def get_tailscale_ip() -> str:
+    """Get Tailscale IP address. Returns None if not connected."""
+    try:
+        result = subprocess.run(
+            ["tailscale", "ip", "-4"],
+            capture_output=True, text=True, timeout=5
+        )
+        if result.returncode == 0:
+            return result.stdout.strip().split('\n')[0]
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        pass
+    return None
+
+
+def get_tailscale_status() -> dict:
+    """Get Tailscale connection status."""
+    try:
+        result = subprocess.run(
+            ["tailscale", "status", "--json"],
+            capture_output=True, text=True, timeout=5
+        )
+        if result.returncode == 0:
+            import json
+            return json.loads(result.stdout)
+    except:
+        pass
+    return None
 
 
 def get_certificate_fingerprint() -> str:
@@ -156,35 +187,43 @@ async def health_handler(request):
     return web.json_response({"status": "ok", "service": "termlinky"})
 
 
-def get_local_ip():
-    """Get local IP address."""
-    import socket
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
-    except Exception:
-        return "127.0.0.1"
-
-
 def print_banner():
     """Print startup banner with pairing info."""
-    local_ip = get_local_ip()
+    tailscale_ip = get_tailscale_ip()
     pairing_code = get_pairing_code()
     
-    print("\n" + "=" * 50)
+    print("\n" + "=" * 55)
     print("  TermLinky Server")
-    print("=" * 50)
-    print(f"\n  📍 Address: {local_ip}:{PORT}")
-    print(f"\n  🔐 Pairing Code: {pairing_code}")
-    print("\n  Enter this code in the iOS app to pair.")
-    print("=" * 50 + "\n")
+    print("=" * 55)
+    
+    if tailscale_ip:
+        print(f"\n  ✓ Tailscale connected")
+        print(f"\n  📍 Address: {tailscale_ip}:{PORT}")
+        print(f"\n  🔐 Pairing Code: {pairing_code}")
+        print("\n  Enter this address and code in the TermLinky app.")
+    else:
+        print("\n  ⚠️  Tailscale not connected!")
+        print("\n  TermLinky requires Tailscale for remote access.")
+        print("  Install: https://tailscale.com/download")
+        print("\n  After installing, run: tailscale up")
+    
+    print("\n" + "=" * 55 + "\n")
 
 
 def main():
     """Start the server."""
+    # Check Tailscale
+    tailscale_ip = get_tailscale_ip()
+    if not tailscale_ip:
+        print("\n⚠️  Warning: Tailscale not connected")
+        print("TermLinky works best over Tailscale for secure remote access.")
+        print("Install from: https://tailscale.com/download\n")
+        # Fall back to all interfaces for local testing
+        host = "0.0.0.0"
+    else:
+        # Bind only to Tailscale interface for security
+        host = tailscale_ip
+    
     generate_certificate()
     print_banner()
     
@@ -195,8 +234,8 @@ def main():
     app.router.add_get("/terminal", websocket_handler)
     app.router.add_get("/health", health_handler)
     
-    print(f"Starting server on https://{HOST}:{PORT}")
-    web.run_app(app, host=HOST, port=PORT, ssl_context=ssl_ctx)
+    print(f"Starting server on https://{host}:{PORT}")
+    web.run_app(app, host=host, port=PORT, ssl_context=ssl_ctx)
 
 
 if __name__ == "__main__":

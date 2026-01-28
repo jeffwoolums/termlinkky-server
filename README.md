@@ -1,91 +1,111 @@
 # TermLinky
 
-Remote terminal access for developers. Connect your iPhone/iPad to your Mac for on-the-go terminal monitoring and command execution.
+Remote terminal access for developers. Connect your phone to your workstation securely over Tailscale.
 
-## Features
+## Requirements
 
-### 📱 iOS App
-- **Secure Pairing** - Certificate pinning ensures you're connecting to YOUR Mac
-- **Command Palette** - Quick access to common commands (git, npm, docker, AI agents)
-- **Live Terminal** - Real-time output with ANSI color support
-- **Custom Commands** - Add your own frequently-used commands
-- **Category Filtering** - Organize and filter commands by type
+- **Tailscale** - Required for secure remote access ([install](https://tailscale.com/download))
+- Python 3.9+ (server)
+- iOS 14+ / Android 8+ (client)
 
-### 💻 Mac Server
-- **Self-signed HTTPS** - Automatic certificate generation
-- **WebSocket Terminal** - Real-time bidirectional communication
-- **tmux Integration** - Attach to existing sessions
-- **Bonjour Discovery** - Automatic local network discovery
-
-## Architecture
+## How It Works
 
 ```
-┌─────────────┐         TLS + Cert Pinning        ┌─────────────┐
-│   iOS App   │ ◄──────────────────────────────► │  Mac Server │
-│             │         WebSocket                 │             │
-│  - Pairing  │                                   │  - HTTPS    │
-│  - Terminal │                                   │  - PTY      │
-│  - Commands │                                   │  - tmux     │
-└─────────────┘                                   └─────────────┘
+Your Phone                           Your Workstation
+┌──────────────┐                    ┌──────────────┐
+│  TermLinky   │◄──────────────────►│  TermLinky   │
+│  App         │   Tailscale VPN    │  Server      │
+│              │   (100.x.x.x)      │              │
+│  iOS/Android │   + Cert Pinning   │  Mac/Win/Lin │
+└──────────────┘                    └──────────────┘
 ```
 
-### Pairing Flow
+1. **Tailscale** creates encrypted tunnel between devices
+2. **Server** binds only to Tailscale IP (not exposed to internet)
+3. **Certificate pinning** verifies you're connecting to YOUR machine
+4. **Pairing code** ensures initial setup is secure
 
-1. Mac server generates self-signed certificate on first run
-2. Server displays 6-digit pairing code (derived from cert fingerprint)
-3. User enters code in iOS app
-4. iOS app stores certificate fingerprint
-5. All future connections verify cert matches (certificate pinning)
+## Quick Start
 
-This ensures:
-- No MITM attacks possible after pairing
-- No external CA or Let's Encrypt needed
-- Works over any network (local, Tailscale, etc.)
-
-## Installation
-
-### iOS App
-
-Build with Xcode 15+ or use XcodeGen:
+### 1. Install Tailscale (both devices)
 
 ```bash
-# Install xcodegen
-brew install xcodegen
+# macOS
+brew install tailscale
 
-# Generate project
-cd TermLinky
-xcodegen generate
-
-# Open in Xcode
-open TermLinky.xcodeproj
+# Or download from https://tailscale.com/download
 ```
 
-### Mac Server
+Then connect:
+```bash
+tailscale up
+```
+
+### 2. Start the Server
 
 ```bash
 cd server
-./install.sh
-```
-
-Or manually:
-
-```bash
-# Install dependencies
-pip3 install -r requirements.txt
-
-# Generate certificate
-./generate-cert.sh
-
-# Run server
+pip3 install aiohttp
 python3 server.py
 ```
 
-## Quick Commands
+You'll see:
+```
+==================================================
+  TermLinky Server
+==================================================
 
-Built-in commands organized by category:
+  ✓ Tailscale connected
 
-| Category | Commands |
-|----------|----------|
+  📍 Address: 100.x.x.x:8443
+
+  🔐 Pairing Code: 123456
+
+  Enter this address and code in the TermLinky app.
+==================================================
+```
+
+### 3. Pair the App
+
+1. Open TermLinky on your phone
+2. Go to Devices → Pair New Device
+3. Enter the Tailscale IP and port
+4. Enter the 6-digit pairing code
+5. Done! You're connected.
+
+## Features
+
+### 📱 Mobile App
+- **Command Palette** - Quick access to common commands
+- **Live Terminal** - Real-time output with ANSI colors
+- **Custom Commands** - Add your own frequently-used commands
+- **Categories** - AI Agents, Git, Node, Python, Docker, System
+
+### 💻 Server
+- **Tailscale-only binding** - Not exposed to the internet
+- **Auto certificate generation** - No manual SSL setup
+- **WebSocket terminal** - Real-time bidirectional I/O
+- **Cross-platform** - Mac, Windows, Linux
+
+## Security
+
+| Layer | Protection |
+|-------|------------|
+| **Network** | Tailscale WireGuard encryption |
+| **Binding** | Server only listens on Tailscale IP |
+| **App Layer** | Certificate pinning after pairing |
+| **Pairing** | 6-digit code prevents unauthorized setup |
+
+**Why Tailscale?**
+- No port forwarding or firewall config needed
+- Works from anywhere (home, coffee shop, travel)
+- Devices authenticated via Tailscale account
+- Traffic never touches public internet
+
+## Command Categories
+
+| Category | Built-in Commands |
+|----------|------------------|
 | **AI Agents** | Claude Code, Codex, Aider |
 | **Git** | status, pull, push, log, diff, stash |
 | **Node.js** | npm install, run dev, build, test |
@@ -95,20 +115,30 @@ Built-in commands organized by category:
 | **Files** | ls, tree, find |
 | **Terminal** | clear, exit, tmux |
 
-Add custom commands in Settings → Quick Commands.
+## Project Structure
 
-## Security
+```
+TermLinky/
+├── server/
+│   ├── server.py         # Python WebSocket server
+│   ├── requirements.txt
+│   └── install.sh
+├── TermLinky/            # iOS app (Swift)
+└── README.md
 
-- **Certificate Pinning**: After pairing, only YOUR Mac's certificate is trusted
-- **Self-signed Certs**: No external CA dependencies
-- **Local-first**: No cloud services required
-- **Code Verification**: Pairing code prevents unauthorized access
+termlinky_flutter/        # Cross-platform client (separate repo)
+├── lib/
+│   ├── models/
+│   ├── services/
+│   ├── screens/
+│   └── widgets/
+└── pubspec.yaml
+```
 
-## Requirements
+## Platforms
 
-- iOS 17.0+
-- macOS 14.0+ (for server)
-- Python 3.9+ (for server)
+**Server:** macOS, Windows, Linux  
+**Client:** iOS, Android, macOS, Windows, Linux (via Flutter)
 
 ## License
 
