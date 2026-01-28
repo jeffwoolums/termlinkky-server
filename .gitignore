@@ -1,0 +1,41 @@
+# Xcode
+build/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+DerivedData/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.moved-aside
+*.xcuserstate
+*.xccheckout
+*.xcscmblueprint
+*.hmap
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# Certificates (keep local)
+server/certs/
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+venv/
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
