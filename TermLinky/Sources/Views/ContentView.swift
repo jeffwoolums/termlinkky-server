@@ -1,6 +1,6 @@
 //
 //  ContentView.swift
-//  TermLinky
+//  TermLinkky
 //
 //  Main tab-based navigation.
 //

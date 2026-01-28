@@ -1,6 +1,6 @@
 //
 //  PairedDevice.swift
-//  TermLinky
+//  TermLinkky
 //
 //  Represents a paired Mac with its certificate fingerprint.
 //

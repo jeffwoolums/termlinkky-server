@@ -2,19 +2,19 @@
 import PackageDescription
 
 let package = Package(
-    name: "TermLinky",
+    name: "TermLinkky",
     platforms: [.iOS(.v17), .macOS(.v14)],
     products: [
-        .library(name: "TermLinky", targets: ["TermLinky"])
+        .library(name: "TermLinkky", targets: ["TermLinkky"])
     ],
     dependencies: [
         .package(url: "https://github.com/Nirma/SFSymbol", from: "2.3.0")
     ],
     targets: [
         .target(
-            name: "TermLinky",
+            name: "TermLinkky",
             dependencies: ["SFSymbol"],
-            path: "TermLinky/Sources"
+            path: "TermLinkky/Sources"
         )
     ]
 )

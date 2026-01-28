@@ -1,6 +1,6 @@
 //
 //  TerminalView.swift
-//  TermLinky
+//  TermLinkky
 //
 //  Terminal output display with command input.
 //
@@ -37,7 +37,7 @@ struct TerminalView: View {
                 .padding(.trailing, 16)
                 .padding(.bottom, connectionManager.isConnected ? 70 : 16)
             }
-            .navigationTitle("TermLinky")
+            .navigationTitle("TermLinkky")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

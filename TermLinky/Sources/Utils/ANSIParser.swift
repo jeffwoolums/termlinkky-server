@@ -1,6 +1,6 @@
 //
 //  ANSIParser.swift
-//  TermLinky
+//  TermLinkky
 //
 //  Parses ANSI escape codes into styled segments.
 //

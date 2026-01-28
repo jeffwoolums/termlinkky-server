@@ -1,6 +1,6 @@
 //
 //  QuickCommand.swift
-//  TermLinky
+//  TermLinkky
 //
 //  Quick commands for remote terminal execution.
 //

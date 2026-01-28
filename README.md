@@ -1,4 +1,4 @@
-# TermLinky
+# TermLinkky
 
 Remote terminal access for developers. Connect your phone to your workstation securely over Tailscale.
 
@@ -13,7 +13,7 @@ Remote terminal access for developers. Connect your phone to your workstation se
 ```
 Your Phone                           Your Workstation
 ┌──────────────┐                    ┌──────────────┐
-│  TermLinky   │◄──────────────────►│  TermLinky   │
+│  TermLinkky   │◄──────────────────►│  TermLinkky   │
 │  App         │   Tailscale VPN    │  Server      │
 │              │   (100.x.x.x)      │              │
 │  iOS/Android │   + Cert Pinning   │  Mac/Win/Lin │
@@ -52,7 +52,7 @@ python3 server.py
 You'll see:
 ```
 ==================================================
-  TermLinky Server
+  TermLinkky Server
 ==================================================
 
   ✓ Tailscale connected
@@ -61,13 +61,13 @@ You'll see:
 
   🔐 Pairing Code: 123456
 
-  Enter this address and code in the TermLinky app.
+  Enter this address and code in the TermLinkky app.
 ==================================================
 ```
 
 ### 3. Pair the App
 
-1. Open TermLinky on your phone
+1. Open TermLinkky on your phone
 2. Go to Devices → Pair New Device
 3. Enter the Tailscale IP and port
 4. Enter the 6-digit pairing code
@@ -118,15 +118,15 @@ You'll see:
 ## Project Structure
 
 ```
-TermLinky/
+TermLinkky/
 ├── server/
 │   ├── server.py         # Python WebSocket server
 │   ├── requirements.txt
 │   └── install.sh
-├── TermLinky/            # iOS app (Swift)
+├── TermLinkky/            # iOS app (Swift)
 └── README.md
 
-termlinky_flutter/        # Cross-platform client (separate repo)
+termlinkky_flutter/        # Cross-platform client (separate repo)
 ├── lib/
 │   ├── models/
 │   ├── services/

@@ -1,6 +1,6 @@
 //
 //  SettingsManager.swift
-//  TermLinky
+//  TermLinkky
 //
 //  Manages app settings and quick commands.
 //

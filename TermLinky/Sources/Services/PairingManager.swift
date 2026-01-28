@@ -1,6 +1,6 @@
 //
 //  PairingManager.swift
-//  TermLinky
+//  TermLinkky
 //
 //  Manages device pairing with certificate pinning.
 //
@@ -82,7 +82,7 @@ class PairingManager: ObservableObject {
         let parameters = NWParameters()
         parameters.includePeerToPeer = true
         
-        browser = NWBrowser(for: .bonjour(type: "_termlinky._tcp", domain: nil), using: parameters)
+        browser = NWBrowser(for: .bonjour(type: "_termlinkky._tcp", domain: nil), using: parameters)
         
         browser?.stateUpdateHandler = { [weak self] newState in
             Task { @MainActor in

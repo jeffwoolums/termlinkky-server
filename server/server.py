@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-TermLinky Server - Mac/Windows/Linux companion for TermLinky mobile app.
+TermLinkky Server - Mac/Windows/Linux companion for TermLinkky mobile app.
 Provides secure WebSocket terminal access over Tailscale.
 
 Requirements:
@@ -94,7 +94,7 @@ def generate_certificate():
         "openssl", "req", "-x509", "-newkey", "rsa:4096",
         "-keyout", str(KEY_FILE), "-out", str(CERT_FILE),
         "-days", "3650", "-nodes",
-        "-subj", f"/CN={hostname}/O=TermLinky"
+        "-subj", f"/CN={hostname}/O=TermLinkky"
     ], check=True)
 
 
@@ -184,7 +184,7 @@ async def websocket_handler(request):
 
 async def health_handler(request):
     """Health check endpoint."""
-    return web.json_response({"status": "ok", "service": "termlinky"})
+    return web.json_response({"status": "ok", "service": "termlinkky"})
 
 
 def print_banner():
@@ -193,17 +193,17 @@ def print_banner():
     pairing_code = get_pairing_code()
     
     print("\n" + "=" * 55)
-    print("  TermLinky Server")
+    print("  TermLinkky Server")
     print("=" * 55)
     
     if tailscale_ip:
         print(f"\n  ✓ Tailscale connected")
         print(f"\n  📍 Address: {tailscale_ip}:{PORT}")
         print(f"\n  🔐 Pairing Code: {pairing_code}")
-        print("\n  Enter this address and code in the TermLinky app.")
+        print("\n  Enter this address and code in the TermLinkky app.")
     else:
         print("\n  ⚠️  Tailscale not connected!")
-        print("\n  TermLinky requires Tailscale for remote access.")
+        print("\n  TermLinkky requires Tailscale for remote access.")
         print("  Install: https://tailscale.com/download")
         print("\n  After installing, run: tailscale up")
     
@@ -216,7 +216,7 @@ def main():
     tailscale_ip = get_tailscale_ip()
     if not tailscale_ip:
         print("\n⚠️  Warning: Tailscale not connected")
-        print("TermLinky works best over Tailscale for secure remote access.")
+        print("TermLinkky works best over Tailscale for secure remote access.")
         print("Install from: https://tailscale.com/download\n")
         # Fall back to all interfaces for local testing
         host = "0.0.0.0"

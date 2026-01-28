@@ -1,6 +1,6 @@
 //
 //  CommandPaletteView.swift
-//  TermLinky
+//  TermLinkky
 //
 //  Quick command popup with categories and search.
 //

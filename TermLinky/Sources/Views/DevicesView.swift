@@ -1,6 +1,6 @@
 //
 //  DevicesView.swift
-//  TermLinky
+//  TermLinkky
 //
 //  Manage paired devices and pairing flow.
 //

@@ -1,6 +1,6 @@
 //
-//  TermLinkyApp.swift
-//  TermLinky
+//  TermLinkkyApp.swift
+//  TermLinkky
 //
 //  Remote terminal access for developers.
 //
@@ -8,7 +8,7 @@
 import SwiftUI
 
 @main
-struct TermLinkyApp: App {
+struct TermLinkkyApp: App {
     @StateObject private var connectionManager = ConnectionManager()
     @StateObject private var settingsManager = SettingsManager()
     @StateObject private var pairingManager = PairingManager()

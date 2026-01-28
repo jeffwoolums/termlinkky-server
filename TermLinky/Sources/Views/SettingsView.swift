@@ -1,6 +1,6 @@
 //
 //  SettingsView.swift
-//  TermLinky
+//  TermLinkky
 //
 //  App settings and command customization.
 //
@@ -74,7 +74,7 @@ struct SettingsView: View {
                 } header: {
                     Text("About")
                 } footer: {
-                    Text("TermLinky - Remote terminal for developers")
+                    Text("TermLinkky - Remote terminal for developers")
                 }
             }
             .navigationTitle("Settings")

@@ -1,6 +1,6 @@
 //
 //  TerminalLine.swift
-//  TermLinky
+//  TermLinkky
 //
 //  Represents a line of terminal output with ANSI styling.
 //

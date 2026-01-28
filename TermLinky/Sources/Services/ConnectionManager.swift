@@ -1,6 +1,6 @@
 //
 //  ConnectionManager.swift
-//  TermLinky
+//  TermLinkky
 //
 //  Manages secure connections to paired Mac servers.
 //
