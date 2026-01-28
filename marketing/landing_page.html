@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TermLinkky - Remote Terminal for Developers</title>
+    <meta name="description" content="Control your Mac, Windows, or Linux workstation from anywhere. Terminal access, AI assistant, and AI session control.">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --green: #32C759; --dark: #0a0a0a; --gray: #1a1a1a; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--dark); color: white; line-height: 1.6; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+        
+        .hero { min-height: 100vh; display: flex; align-items: center; padding: 80px 0; background: linear-gradient(135deg, var(--dark) 0%, #0d1f0d 100%); }
+        .hero-content { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
+        .hero h1 { font-size: 4rem; font-weight: 800; margin-bottom: 24px; background: linear-gradient(135deg, white 0%, var(--green) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .hero p { font-size: 1.25rem; color: #888; margin-bottom: 32px; }
+        .cta-buttons { display: flex; gap: 16px; flex-wrap: wrap; }
+        .btn { padding: 16px 32px; border-radius: 12px; font-size: 1.1rem; font-weight: 600; text-decoration: none; transition: transform 0.2s; display: inline-block; }
+        .btn:hover { transform: translateY(-2px); }
+        .btn-primary { background: var(--green); color: white; }
+        .btn-secondary { background: var(--gray); color: white; border: 1px solid #333; }
+        .hero-image img { width: 100%; border-radius: 24px; box-shadow: 0 40px 80px rgba(0,0,0,0.5); }
+        
+        .features { padding: 120px 0; background: var(--gray); }
+        .features h2 { text-align: center; font-size: 2.5rem; margin-bottom: 60px; }
+        .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; }
+        .feature { background: var(--dark); padding: 40px; border-radius: 16px; border: 1px solid #333; }
+        .feature-icon { width: 60px; height: 60px; background: rgba(50,199,89,0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 28px; margin-bottom: 20px; }
+        .feature h3 { font-size: 1.5rem; margin-bottom: 12px; }
+        .feature p { color: #888; }
+        
+        .security { padding: 120px 0; }
+        .security h2 { text-align: center; font-size: 2.5rem; margin-bottom: 24px; }
+        .security > p { text-align: center; color: #888; margin-bottom: 60px; max-width: 600px; margin-left: auto; margin-right: auto; }
+        .security-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+        .security-item { text-align: center; padding: 24px; }
+        .security-item .icon { font-size: 48px; margin-bottom: 16px; }
+        .security-item h4 { margin-bottom: 8px; }
+        .security-item p { color: #666; font-size: 0.9rem; }
+        
+        .cta { padding: 120px 0; background: linear-gradient(135deg, var(--green) 0%, #1a5c2a 100%); text-align: center; }
+        .cta h2 { font-size: 3rem; margin-bottom: 24px; }
+        .cta p { font-size: 1.25rem; margin-bottom: 40px; opacity: 0.9; }
+        
+        footer { padding: 60px 0; background: var(--dark); text-align: center; color: #666; border-top: 1px solid #222; }
+        footer a { color: var(--green); text-decoration: none; }
+        
+        @media (max-width: 768px) {
+            .hero-content { grid-template-columns: 1fr; text-align: center; }
+            .hero h1 { font-size: 2.5rem; }
+            .features-grid { grid-template-columns: 1fr; }
+            .security-grid { grid-template-columns: repeat(2, 1fr); }
+            .cta-buttons { justify-content: center; }
+        }
+    </style>
+</head>
+<body>
+    <section class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <div>
+                    <h1>Your Terminal,<br>Everywhere</h1>
+                    <p>Control your Mac, Windows, or Linux workstation from your phone. Run commands, monitor AI coding agents, and manage your dev environment securely over Tailscale.</p>
+                    <div class="cta-buttons">
+                        <a href="#" class="btn btn-primary">📱 Download for iOS</a>
+                        <a href="#" class="btn btn-secondary">🤖 Download for Android</a>
+                    </div>
+                </div>
+                <div class="hero-image">
+                    <img src="assets/logo.jpg" alt="TermLinkky">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="features">
+        <div class="container">
+            <h2>Everything You Need</h2>
+            <div class="features-grid">
+                <div class="feature">
+                    <div class="feature-icon">🖥️</div>
+                    <h3>Remote Terminal</h3>
+                    <p>Full terminal access with ANSI color support. Run any command from anywhere in the world.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🤖</div>
+                    <h3>AI Assistant</h3>
+                    <p>Use natural language to run commands. Say "deploy my app" and watch it happen.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🧠</div>
+                    <h3>AI Sessions</h3>
+                    <p>Monitor Claude Code, Codex, or Aider running on your workstation in real-time.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">⚡</div>
+                    <h3>Command Palette</h3>
+                    <p>Quick access to Git, npm, Docker, Python commands. Add your own custom commands.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🔗</div>
+                    <h3>Tailscale VPN</h3>
+                    <p>Secure connection over Tailscale. No port forwarding or firewall config needed.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🌍</div>
+                    <h3>Cross-Platform</h3>
+                    <p>Server runs on Mac, Windows, Linux. Client on iOS, Android, and desktop.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="security">
+        <div class="container">
+            <h2>Security First</h2>
+            <p>Your code never leaves your network. TermLinkky uses multiple layers of security.</p>
+            <div class="security-grid">
+                <div class="security-item">
+                    <div class="icon">🔐</div>
+                    <h4>Tailscale VPN</h4>
+                    <p>WireGuard encryption for all traffic</p>
+                </div>
+                <div class="security-item">
+                    <div class="icon">📜</div>
+                    <h4>Cert Pinning</h4>
+                    <p>Prevents man-in-the-middle attacks</p>
+                </div>
+                <div class="security-item">
+                    <div class="icon">🏠</div>
+                    <h4>Local Binding</h4>
+                    <p>Server only listens on Tailscale IP</p>
+                </div>
+                <div class="security-item">
+                    <div class="icon">🔑</div>
+                    <h4>Pairing Code</h4>
+                    <p>6-digit code prevents unauthorized access</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="cta">
+        <div class="container">
+            <h2>Ready to go mobile?</h2>
+            <p>Download TermLinkky and take your terminal everywhere.</p>
+            <div class="cta-buttons" style="justify-content: center;">
+                <a href="#" class="btn btn-primary" style="background: white; color: #1a5c2a;">Get Started Free</a>
+                <a href="https://github.com/termlinkky" class="btn btn-secondary" style="border-color: white;">View on GitHub</a>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <p>© 2026 TermLinkky. Built for developers, by developers.</p>
+            <p style="margin-top: 12px;"><a href="#">Documentation</a> · <a href="#">GitHub</a> · <a href="#">Support</a></p>
+        </div>
+    </footer>
+</body>
+</html>
