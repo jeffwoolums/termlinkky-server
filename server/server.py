@@ -408,6 +408,17 @@ async def health_handler(request):
     return web.json_response({"status": "ok", "service": "termlinkky"})
 
 
+async def info_handler(request):
+    """Server info for autodiscovery and pairing."""
+    hostname = subprocess.run(["hostname"], capture_output=True, text=True).stdout.strip()
+    return web.json_response({
+        "name": hostname,
+        "fingerprint": get_certificate_fingerprint(),
+        "pairingCode": get_pairing_code(),
+        "version": "2.0.0"
+    })
+
+
 async def viewer_handler(request):
     """Serve the web-based terminal viewer."""
     viewer_path = Path(__file__).parent / "viewer.html"
@@ -472,9 +483,46 @@ def main():
     app.router.add_get("/terminal", websocket_handler)  # Shared tmux session
     app.router.add_get("/terminal/private", websocket_private_handler)  # Private session
     app.router.add_get("/health", health_handler)
+    app.router.add_get("/info", info_handler)  # Autodiscovery endpoint
+    
+    # Start Bonjour/Zeroconf advertising
+    zeroconf_instance = None
+    service_info = None
+    try:
+        from zeroconf import Zeroconf, ServiceInfo
+        import socket
+        
+        hostname = socket.gethostname()
+        local_ip = socket.gethostbyname(hostname)
+        
+        service_info = ServiceInfo(
+            "_termlinkky._tcp.local.",
+            f"{hostname}._termlinkky._tcp.local.",
+            addresses=[socket.inet_aton(local_ip)],
+            port=PORT,
+            properties={
+                "version": "2.0.0",
+                "pairing": get_pairing_code()
+            },
+            server=f"{hostname}.local."
+        )
+        
+        zeroconf_instance = Zeroconf()
+        zeroconf_instance.register_service(service_info)
+        print(f"📡 Bonjour: Advertising as {hostname}._termlinkky._tcp.local.")
+    except ImportError:
+        print("📡 Bonjour: zeroconf not installed (pip install zeroconf)")
+    except Exception as e:
+        print(f"📡 Bonjour: Failed to advertise - {e}")
     
     print(f"Starting server on https://{host}:{PORT}")
-    web.run_app(app, host=host, port=PORT, ssl_context=ssl_ctx)
+    
+    try:
+        web.run_app(app, host=host, port=PORT, ssl_context=ssl_ctx)
+    finally:
+        if zeroconf_instance and service_info:
+            zeroconf_instance.unregister_service(service_info)
+            zeroconf_instance.close()
 
 
 if __name__ == "__main__":

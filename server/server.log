@@ -1,0 +1,21 @@
+
+=======================================================
+  TermLinkky Server
+=======================================================
+
+  ✓ Tailscale connected
+
+  📍 Address: 100.70.5.93:8443
+
+  🔐 Pairing Code: 730559
+
+  📺 Web Viewer: https://100.70.5.93:8443/viewer
+
+  📱 All clients share ONE tmux session!
+     Run 'tmux attach -t termlinkky' locally to join.
+
+=======================================================
+
+Starting server on https://100.70.5.93:8443
+======== Running on https://100.70.5.93:8443 ========
+(Press CTRL+C to quit)
