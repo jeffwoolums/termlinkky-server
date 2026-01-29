@@ -465,11 +465,9 @@ def main():
         print("\n⚠️  Warning: Tailscale not connected")
         print("TermLinkky works best over Tailscale for secure remote access.")
         print("Install from: https://tailscale.com/download\n")
-        # Fall back to all interfaces for local testing
-        host = "0.0.0.0"
-    else:
-        # Bind only to Tailscale interface for security
-        host = tailscale_ip
+    
+    # Bind to all interfaces for both local and Tailscale access
+    host = "0.0.0.0"
     
     generate_certificate()
     print_banner()
