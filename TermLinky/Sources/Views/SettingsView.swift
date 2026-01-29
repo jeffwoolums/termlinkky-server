@@ -178,14 +178,15 @@ struct CommandsEditorView: View {
                 }
             }
             .navigationTitle("Quick Commands")
-            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }
                 }
+                #if os(iOS)
                 ToolbarItem(placement: .primaryAction) {
                     EditButton()
                 }
+                #endif
             }
             .sheet(isPresented: $showingAddCommand) {
                 AddCommandSheet()
@@ -213,7 +214,9 @@ struct AddCommandSheet: View {
                 TextField("Name", text: $name)
                 TextField("Command", text: $command)
                     .fontDesign(.monospaced)
+                    #if os(iOS)
                     .textInputAutocapitalization(.never)
+                    #endif
                     .autocorrectionDisabled()
                 
                 Picker("Category", selection: $category) {
@@ -223,7 +226,6 @@ struct AddCommandSheet: View {
                 }
             }
             .navigationTitle("Add Command")
-            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -261,7 +263,9 @@ struct EditCommandSheet: View {
                 TextField("Name", text: $name)
                 TextField("Command", text: $commandText)
                     .fontDesign(.monospaced)
+                    #if os(iOS)
                     .textInputAutocapitalization(.never)
+                    #endif
                     .autocorrectionDisabled()
                 
                 Picker("Category", selection: $category) {
@@ -271,7 +275,6 @@ struct EditCommandSheet: View {
                 }
             }
             .navigationTitle("Edit Command")
-            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

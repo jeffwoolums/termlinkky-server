@@ -59,7 +59,6 @@ struct CommandPaletteView: View {
             }
             .searchable(text: $searchText, prompt: "Search commands...")
             .navigationTitle("Commands")
-            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -92,9 +91,15 @@ struct CommandPaletteView: View {
     }
     
     private func runCommand(_ command: QuickCommand) {
+        #if os(iOS)
         if settingsManager.hapticFeedback {
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         }
+        #elseif os(macOS)
+        if settingsManager.hapticFeedback {
+            NSHapticFeedbackManager.defaultPerformer.perform(.generic, performanceTime: .default)
+        }
+        #endif
         connectionManager.sendCommand(command.command)
         dismiss()
     }
@@ -141,7 +146,11 @@ struct CommandButton: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 12)
+            #if os(iOS)
             .background(Color(.secondarySystemGroupedBackground))
+            #else
+            .background(Color(nsColor: .controlBackgroundColor))
+            #endif
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
         .buttonStyle(.plain)

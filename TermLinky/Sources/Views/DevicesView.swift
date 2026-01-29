@@ -146,7 +146,6 @@ struct PairingView: View {
             }
             .padding()
             .navigationTitle("Pair Device")
-            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
@@ -179,12 +178,13 @@ struct PairingView: View {
                 
                 TextField("IP Address or Hostname", text: $manualHost)
                     .textFieldStyle(.roundedBorder)
+                    #if os(iOS)
                     .textInputAutocapitalization(.never)
+                    #endif
                     .autocorrectionDisabled()
                 
                 TextField("Port", text: $manualPort)
                     .textFieldStyle(.roundedBorder)
-                    .keyboardType(.numberPad)
             }
             .padding(.vertical)
             
@@ -220,7 +220,9 @@ struct PairingView: View {
             TextField("000000", text: $pairingCode)
                 .font(.system(size: 32, weight: .bold, design: .monospaced))
                 .multilineTextAlignment(.center)
+                #if os(iOS)
                 .keyboardType(.numberPad)
+                #endif
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 200)
             

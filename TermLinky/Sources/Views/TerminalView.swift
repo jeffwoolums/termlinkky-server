@@ -38,9 +38,8 @@ struct TerminalView: View {
                 .padding(.bottom, connectionManager.isConnected ? 70 : 16)
             }
             .navigationTitle("TermLinkky")
-            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .automatic) {
                     Menu {
                         if connectionManager.isConnected {
                             Button {
@@ -114,7 +113,11 @@ struct ConnectionStatusBar: View {
         }
         .padding(.horizontal)
         .padding(.vertical, 8)
+        #if os(iOS)
         .background(Color(.secondarySystemBackground))
+        #else
+        .background(Color(nsColor: .controlBackgroundColor))
+        #endif
     }
 }
 
@@ -184,7 +187,9 @@ struct InputBar: View {
             
             TextField("Enter command...", text: $text)
                 .font(.system(.body, design: .monospaced))
+                #if os(iOS)
                 .textInputAutocapitalization(.never)
+                #endif
                 .autocorrectionDisabled()
                 .focused(isFocused)
                 .onSubmit(onSubmit)
@@ -198,6 +203,10 @@ struct InputBar: View {
         }
         .padding(.horizontal)
         .padding(.vertical, 10)
+        #if os(iOS)
         .background(Color(.secondarySystemBackground))
+        #else
+        .background(Color(nsColor: .controlBackgroundColor))
+        #endif
     }
 }

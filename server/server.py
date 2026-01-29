@@ -98,8 +98,113 @@ def generate_certificate():
     ], check=True)
 
 
+class SharedTerminalSession:
+    """Manages a shared tmux terminal session that multiple clients can connect to."""
+    
+    SESSION_NAME = "termlinkky"
+    _instance = None
+    _clients = []
+    _master_fd = None
+    _pid = None
+    _running = False
+    _read_task = None
+    
+    @classmethod
+    def get_instance(cls):
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
+    
+    def __init__(self):
+        pass
+    
+    async def add_client(self, ws: web.WebSocketResponse):
+        """Add a client to the shared session."""
+        self._clients.append(ws)
+        
+        # Start session if not running
+        if not self._running:
+            await self._start_tmux_session()
+        
+        # Send current tmux buffer to new client
+        try:
+            result = subprocess.run(
+                ["tmux", "capture-pane", "-t", self.SESSION_NAME, "-p", "-S", "-1000"],
+                capture_output=True, text=True, timeout=2
+            )
+            if result.returncode == 0 and result.stdout:
+                await ws.send_str(result.stdout)
+        except:
+            pass
+    
+    def remove_client(self, ws: web.WebSocketResponse):
+        """Remove a client from the session."""
+        if ws in self._clients:
+            self._clients.remove(ws)
+    
+    async def _start_tmux_session(self):
+        """Start or attach to a tmux session."""
+        # Check if session already exists
+        result = subprocess.run(
+            ["tmux", "has-session", "-t", self.SESSION_NAME],
+            capture_output=True
+        )
+        
+        if result.returncode != 0:
+            # Create new session
+            subprocess.run([
+                "tmux", "new-session", "-d", "-s", self.SESSION_NAME,
+                "-x", "120", "-y", "40"
+            ])
+        
+        # Open PTY to tmux
+        self._master_fd, slave_fd = pty.openpty()
+        self._pid = os.fork()
+        
+        if self._pid == 0:
+            os.close(self._master_fd)
+            os.setsid()
+            os.dup2(slave_fd, 0)
+            os.dup2(slave_fd, 1)
+            os.dup2(slave_fd, 2)
+            os.close(slave_fd)
+            os.execlp("tmux", "tmux", "attach-session", "-t", self.SESSION_NAME)
+        else:
+            os.close(slave_fd)
+            self._running = True
+            self._read_task = asyncio.create_task(self._read_output())
+    
+    async def _read_output(self):
+        """Read output and broadcast to all clients."""
+        while self._running:
+            try:
+                r, _, _ = select.select([self._master_fd], [], [], 0.1)
+                if r:
+                    data = os.read(self._master_fd, 4096)
+                    if data:
+                        text = data.decode("utf-8", errors="replace")
+                        # Broadcast to all connected clients
+                        dead_clients = []
+                        for client in self._clients:
+                            try:
+                                await client.send_str(text)
+                            except:
+                                dead_clients.append(client)
+                        for dc in dead_clients:
+                            self._clients.remove(dc)
+                await asyncio.sleep(0.01)
+            except (OSError, BrokenPipeError):
+                break
+        self._running = False
+    
+    async def write(self, data: str):
+        """Write input to the shared terminal."""
+        if self._master_fd and self._running:
+            os.write(self._master_fd, data.encode("utf-8"))
+
+
 class TerminalSession:
-    """Manages a PTY terminal session."""
+    """Manages a PTY terminal session (legacy non-shared mode)."""
     
     def __init__(self, ws: web.WebSocketResponse):
         self.ws = ws
@@ -163,10 +268,31 @@ class TerminalSession:
 
 
 async def websocket_handler(request):
-    """Handle WebSocket connections for terminal access."""
+    """Handle WebSocket connections for terminal access (shared session via tmux)."""
     ws = web.WebSocketResponse()
     await ws.prepare(request)
     print(f"✓ Client connected: {request.remote}")
+    
+    # Use shared tmux session
+    shared_session = SharedTerminalSession.get_instance()
+    try:
+        await shared_session.add_client(ws)
+        async for msg in ws:
+            if msg.type == aiohttp.WSMsgType.TEXT:
+                await shared_session.write(msg.data)
+            elif msg.type == aiohttp.WSMsgType.ERROR:
+                break
+    finally:
+        shared_session.remove_client(ws)
+        print(f"✗ Client disconnected: {request.remote}")
+    return ws
+
+
+async def websocket_private_handler(request):
+    """Handle WebSocket connections for private terminal sessions."""
+    ws = web.WebSocketResponse()
+    await ws.prepare(request)
+    print(f"✓ Private client connected: {request.remote}")
     
     session = TerminalSession(ws)
     try:
@@ -178,13 +304,26 @@ async def websocket_handler(request):
                 break
     finally:
         session.stop()
-        print(f"✗ Client disconnected: {request.remote}")
+        print(f"✗ Private client disconnected: {request.remote}")
     return ws
 
 
 async def health_handler(request):
     """Health check endpoint."""
     return web.json_response({"status": "ok", "service": "termlinkky"})
+
+
+async def viewer_handler(request):
+    """Serve the web-based terminal viewer."""
+    viewer_path = Path(__file__).parent / "viewer.html"
+    if viewer_path.exists():
+        return web.FileResponse(viewer_path)
+    return web.Response(text="Viewer not found", status=404)
+
+
+async def index_handler(request):
+    """Redirect root to viewer."""
+    return web.HTTPFound('/viewer')
 
 
 def print_banner():
@@ -200,7 +339,9 @@ def print_banner():
         print(f"\n  ✓ Tailscale connected")
         print(f"\n  📍 Address: {tailscale_ip}:{PORT}")
         print(f"\n  🔐 Pairing Code: {pairing_code}")
-        print("\n  Enter this address and code in the TermLinkky app.")
+        print(f"\n  📺 Web Viewer: https://{tailscale_ip}:{PORT}/viewer")
+        print("\n  📱 All clients share ONE tmux session!")
+        print("     Run 'tmux attach -t termlinkky' locally to join.")
     else:
         print("\n  ⚠️  Tailscale not connected!")
         print("\n  TermLinkky requires Tailscale for remote access.")
@@ -231,7 +372,10 @@ def main():
     ssl_ctx.load_cert_chain(str(CERT_FILE), str(KEY_FILE))
     
     app = web.Application()
-    app.router.add_get("/terminal", websocket_handler)
+    app.router.add_get("/", index_handler)
+    app.router.add_get("/viewer", viewer_handler)
+    app.router.add_get("/terminal", websocket_handler)  # Shared tmux session
+    app.router.add_get("/terminal/private", websocket_private_handler)  # Private session
     app.router.add_get("/health", health_handler)
     
     print(f"Starting server on https://{host}:{PORT}")

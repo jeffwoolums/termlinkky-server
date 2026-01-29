@@ -175,8 +175,21 @@ class PairingManager: ObservableObject {
         
         let tlsOptions = NWProtocolTLS.Options()
         
-        // Allow self-signed certs for initial pairing (we'll verify via code)
+        // Use a class to capture the fingerprint from the verify block
+        class FingerprintCapture {
+            var fingerprint: String?
+        }
+        let capture = FingerprintCapture()
+        
+        // Allow self-signed certs for initial pairing and capture fingerprint
         sec_protocol_options_set_verify_block(tlsOptions.securityProtocolOptions, { (_, trust, complete) in
+            // Extract fingerprint from the trust during verification
+            let secTrust = sec_trust_copy_ref(trust).takeRetainedValue()
+            if let certChain = SecTrustCopyCertificateChain(secTrust) as? [SecCertificate],
+               let cert = certChain.first {
+                let certData = SecCertificateCopyData(cert) as Data
+                capture.fingerprint = PairingManager.sha256FingerprintStatic(certData)
+            }
             complete(true)  // Accept any cert during pairing
         }, .main)
         
@@ -191,17 +204,15 @@ class PairingManager: ObservableObject {
                 
                 switch state {
                 case .ready:
-                    // Extract certificate fingerprint
-                    if let metadata = connection.metadata(definition: NWProtocolTLS.definition) as? NWProtocolTLS.Metadata,
-                       let secTrust = sec_trust_copy_ref(metadata.securityProtocolMetadata)?.takeRetainedValue() {
-                        
-                        if let cert = SecTrustGetCertificateAtIndex(secTrust, 0) {
-                            let certData = SecCertificateCopyData(cert) as Data
-                            let fingerprint = self.sha256Fingerprint(certData)
-                            completed = true
-                            connection.cancel()
-                            continuation.resume(returning: fingerprint)
-                        }
+                    // Fingerprint was captured in verify block
+                    if let fingerprint = capture.fingerprint {
+                        completed = true
+                        connection.cancel()
+                        continuation.resume(returning: fingerprint)
+                    } else {
+                        completed = true
+                        connection.cancel()
+                        continuation.resume(throwing: NSError(domain: "PairingManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "Could not extract certificate"]))
                     }
                     
                 case .failed(let error):
@@ -225,6 +236,10 @@ class PairingManager: ObservableObject {
     }
     
     private func sha256Fingerprint(_ data: Data) -> String {
+        Self.sha256FingerprintStatic(data)
+    }
+    
+    private static func sha256FingerprintStatic(_ data: Data) -> String {
         var hash = [UInt8](repeating: 0, count: Int(CC_SHA256_DIGEST_LENGTH))
         data.withUnsafeBytes {
             _ = CC_SHA256($0.baseAddress, CC_LONG(data.count), &hash)
