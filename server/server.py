@@ -144,63 +144,150 @@ class SharedTerminalSession:
     
     async def _start_tmux_session(self):
         """Start or attach to a tmux session."""
-        # Check if session already exists
-        result = subprocess.run(
-            ["tmux", "has-session", "-t", self.SESSION_NAME],
-            capture_output=True
-        )
-        
-        if result.returncode != 0:
-            # Create new session
-            subprocess.run([
-                "tmux", "new-session", "-d", "-s", self.SESSION_NAME,
-                "-x", "120", "-y", "40"
-            ])
-        
-        # Open PTY to tmux
-        self._master_fd, slave_fd = pty.openpty()
-        self._pid = os.fork()
-        
-        if self._pid == 0:
-            os.close(self._master_fd)
-            os.setsid()
-            os.dup2(slave_fd, 0)
-            os.dup2(slave_fd, 1)
-            os.dup2(slave_fd, 2)
-            os.close(slave_fd)
-            os.execlp("tmux", "tmux", "attach-session", "-t", self.SESSION_NAME)
-        else:
-            os.close(slave_fd)
-            self._running = True
-            self._read_task = asyncio.create_task(self._read_output())
+        try:
+            # Check if session already exists
+            result = subprocess.run(
+                ["tmux", "has-session", "-t", self.SESSION_NAME],
+                capture_output=True,
+                timeout=5
+            )
+            
+            if result.returncode != 0:
+                # Create new session
+                print(f"Creating new tmux session: {self.SESSION_NAME}")
+                subprocess.run([
+                    "tmux", "new-session", "-d", "-s", self.SESSION_NAME,
+                    "-x", "120", "-y", "40"
+                ], timeout=5)
+            else:
+                print(f"Attaching to existing tmux session: {self.SESSION_NAME}")
+            
+            # Open PTY to tmux
+            self._master_fd, slave_fd = pty.openpty()
+            self._pid = os.fork()
+            
+            if self._pid == 0:
+                # Child process
+                os.close(self._master_fd)
+                os.setsid()
+                os.dup2(slave_fd, 0)
+                os.dup2(slave_fd, 1)
+                os.dup2(slave_fd, 2)
+                os.close(slave_fd)
+                os.execlp("tmux", "tmux", "attach-session", "-t", self.SESSION_NAME)
+            else:
+                # Parent process
+                os.close(slave_fd)
+                self._running = True
+                self._read_task = asyncio.create_task(self._read_output())
+                print(f"PTY started: master_fd={self._master_fd}, pid={self._pid}")
+        except Exception as e:
+            print(f"Error starting tmux session: {e}")
+            self._running = False
+            raise
     
     async def _read_output(self):
         """Read output and broadcast to all clients."""
+        print("PTY read loop started")
+        consecutive_errors = 0
+        max_errors = 5
+        
         while self._running:
             try:
+                if not self._master_fd:
+                    print("PTY master_fd is None, stopping read loop")
+                    break
+                    
                 r, _, _ = select.select([self._master_fd], [], [], 0.1)
                 if r:
                     data = os.read(self._master_fd, 4096)
                     if data:
                         text = data.decode("utf-8", errors="replace")
+                        consecutive_errors = 0  # Reset error counter on success
+                        
                         # Broadcast to all connected clients
                         dead_clients = []
                         for client in self._clients:
                             try:
                                 await client.send_str(text)
-                            except:
+                            except Exception as e:
+                                print(f"Error sending to client: {e}")
                                 dead_clients.append(client)
                         for dc in dead_clients:
-                            self._clients.remove(dc)
+                            if dc in self._clients:
+                                self._clients.remove(dc)
+                    else:
+                        # Empty read - PTY might be closing
+                        print("Empty read from PTY")
+                        consecutive_errors += 1
+                        if consecutive_errors >= max_errors:
+                            print(f"Too many empty reads, stopping")
+                            break
+                            
                 await asyncio.sleep(0.01)
-            except (OSError, BrokenPipeError):
-                break
+            except (OSError, BrokenPipeError) as e:
+                print(f"PTY read error: {e}")
+                consecutive_errors += 1
+                if consecutive_errors >= max_errors:
+                    print(f"Too many PTY errors, stopping read loop")
+                    break
+                await asyncio.sleep(0.1)
+            except Exception as e:
+                print(f"Unexpected error in read loop: {e}")
+                consecutive_errors += 1
+                if consecutive_errors >= max_errors:
+                    break
+                await asyncio.sleep(0.1)
+                
+        print("PTY read loop ended")
         self._running = False
     
     async def write(self, data: str):
         """Write input to the shared terminal."""
+        # Try PTY write first
         if self._master_fd and self._running:
-            os.write(self._master_fd, data.encode("utf-8"))
+            try:
+                os.write(self._master_fd, data.encode("utf-8"))
+                return
+            except (OSError, BrokenPipeError) as e:
+                print(f"PTY write error: {e}, attempting recovery...")
+                self._running = False
+        
+        # Fallback: use tmux send-keys (more reliable but less interactive)
+        try:
+            # Escape special characters for tmux
+            escaped = data.replace("'", "'\\''")
+            subprocess.run(
+                ["tmux", "send-keys", "-t", self.SESSION_NAME, "-l", data],
+                timeout=2
+            )
+            print("Used tmux send-keys fallback")
+        except Exception as e:
+            print(f"tmux send-keys also failed: {e}")
+        
+        # Try to restart PTY connection in background
+        if not self._running:
+            try:
+                await self._restart_tmux_connection()
+            except Exception as e:
+                print(f"Failed to restart PTY: {e}")
+    
+    async def _restart_tmux_connection(self):
+        """Restart the PTY connection to tmux."""
+        print("Restarting tmux connection...")
+        # Clean up old connection
+        if self._master_fd:
+            try:
+                os.close(self._master_fd)
+            except:
+                pass
+        if self._pid:
+            try:
+                os.kill(self._pid, 9)
+            except:
+                pass
+        # Start new connection
+        await self._start_tmux_session()
 
 
 class TerminalSession:
@@ -279,9 +366,17 @@ async def websocket_handler(request):
         await shared_session.add_client(ws)
         async for msg in ws:
             if msg.type == aiohttp.WSMsgType.TEXT:
-                await shared_session.write(msg.data)
+                try:
+                    await shared_session.write(msg.data)
+                except Exception as e:
+                    print(f"Error writing to terminal: {e}")
+                    # Don't break - try to keep connection alive
+                    # The write method should handle reconnection
             elif msg.type == aiohttp.WSMsgType.ERROR:
+                print(f"WebSocket error: {ws.exception()}")
                 break
+    except Exception as e:
+        print(f"Error in websocket handler: {e}")
     finally:
         shared_session.remove_client(ws)
         print(f"✗ Client disconnected: {request.remote}")
