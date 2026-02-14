@@ -153,17 +153,25 @@ class SharedTerminalSession:
             )
             
             if result.returncode != 0:
-                # Create new session
+                # Create new session with phone-friendly size
                 print(f"Creating new tmux session: {self.SESSION_NAME}")
                 subprocess.run([
                     "tmux", "new-session", "-d", "-s", self.SESSION_NAME,
-                    "-x", "120", "-y", "40"
+                    "-x", "48", "-y", "30"
                 ], timeout=5)
             else:
                 print(f"Attaching to existing tmux session: {self.SESSION_NAME}")
             
-            # Open PTY to tmux
+            # Open PTY to tmux with phone-friendly size
             self._master_fd, slave_fd = pty.openpty()
+            
+            # Set PTY size to phone dimensions (48 cols x 30 rows)
+            import struct
+            import fcntl
+            import termios
+            winsize = struct.pack('HHHH', 30, 48, 0, 0)  # rows, cols, xpixel, ypixel
+            fcntl.ioctl(self._master_fd, termios.TIOCSWINSZ, winsize)
+            
             self._pid = os.fork()
             
             if self._pid == 0:
@@ -174,6 +182,8 @@ class SharedTerminalSession:
                 os.dup2(slave_fd, 1)
                 os.dup2(slave_fd, 2)
                 os.close(slave_fd)
+                # Set TERM so tmux knows terminal capabilities
+                os.environ["TERM"] = "xterm-256color"
                 os.execlp("tmux", "tmux", "attach-session", "-t", self.SESSION_NAME)
             else:
                 # Parent process
@@ -188,22 +198,33 @@ class SharedTerminalSession:
     
     async def _read_output(self):
         """Read output and broadcast to all clients."""
+        import errno
         print("PTY read loop started")
-        consecutive_errors = 0
-        max_errors = 5
+        idle_cycles = 0
+        check_interval = 100  # Check child every ~5 seconds of idle
         
         while self._running:
             try:
                 if not self._master_fd:
                     print("PTY master_fd is None, stopping read loop")
                     break
-                    
-                r, _, _ = select.select([self._master_fd], [], [], 0.1)
+                
+                # Short timeout so we can check for new clients etc
+                r, _, _ = select.select([self._master_fd], [], [], 0.05)
+                
                 if r:
-                    data = os.read(self._master_fd, 4096)
+                    try:
+                        data = os.read(self._master_fd, 4096)
+                    except OSError as e:
+                        if e.errno == errno.EIO:
+                            # EIO is expected when PTY closes
+                            print("PTY closed (EIO)")
+                            break
+                        raise
+                    
                     if data:
                         text = data.decode("utf-8", errors="replace")
-                        consecutive_errors = 0  # Reset error counter on success
+                        idle_cycles = 0  # Reset idle counter on data
                         
                         # Broadcast to all connected clients
                         dead_clients = []
@@ -217,27 +238,34 @@ class SharedTerminalSession:
                             if dc in self._clients:
                                 self._clients.remove(dc)
                     else:
-                        # Empty read - PTY might be closing
-                        print("Empty read from PTY")
-                        consecutive_errors += 1
-                        if consecutive_errors >= max_errors:
-                            print(f"Too many empty reads, stopping")
+                        # Empty read but select said ready - rare but OK
+                        idle_cycles += 1
+                else:
+                    # No data ready (select timeout) - completely normal for tmux
+                    idle_cycles += 1
+                
+                # Only check child status periodically during idle
+                if idle_cycles >= check_interval:
+                    idle_cycles = 0
+                    try:
+                        pid, status = os.waitpid(self._pid, os.WNOHANG)
+                        if pid != 0:
+                            print(f"Child process exited with status {status}")
                             break
-                            
+                    except ChildProcessError:
+                        print("Child process no longer exists")
+                        break
+                
                 await asyncio.sleep(0.01)
+                
             except (OSError, BrokenPipeError) as e:
-                print(f"PTY read error: {e}")
-                consecutive_errors += 1
-                if consecutive_errors >= max_errors:
-                    print(f"Too many PTY errors, stopping read loop")
-                    break
-                await asyncio.sleep(0.1)
+                print(f"PTY error: {e}")
+                break
             except Exception as e:
                 print(f"Unexpected error in read loop: {e}")
-                consecutive_errors += 1
-                if consecutive_errors >= max_errors:
-                    break
-                await asyncio.sleep(0.1)
+                import traceback
+                traceback.print_exc()
+                break
                 
         print("PTY read loop ended")
         self._running = False
@@ -457,6 +485,65 @@ def print_banner():
     print("\n" + "=" * 55 + "\n")
 
 
+import time
+
+# Dashboard and Session Management API
+
+async def dashboard_handler(request):
+    """Serve the session management dashboard."""
+    dashboard_path = Path(__file__).parent / "dashboard.html"
+    if dashboard_path.exists():
+        return web.FileResponse(dashboard_path)
+    return web.Response(text="Dashboard not found", status=404)
+
+async def list_sessions_handler(request):
+    """List all tmux sessions."""
+    try:
+        result = subprocess.run(
+            ["tmux", "list-sessions", "-F", "#{session_name}|#{session_windows}|#{session_created}|#{session_attached}"],
+            capture_output=True, text=True, timeout=5
+        )
+        sessions = []
+        if result.returncode == 0:
+            for line in result.stdout.strip().split('\n'):
+                if line:
+                    parts = line.split('|')
+                    if len(parts) >= 4:
+                        sessions.append({
+                            "name": parts[0],
+                            "windows": parts[1],
+                            "created": parts[2],
+                            "attached": parts[3] == "1"
+                        })
+        return web.json_response({"sessions": sessions})
+    except Exception as e:
+        return web.json_response({"error": str(e), "sessions": []})
+
+async def create_session_handler(request):
+    """Create a new tmux session."""
+    try:
+        data = await request.json()
+        name = data.get("name", f"session-{int(time.time())}")
+        name = "".join(c for c in name if c.isalnum() or c in "-_")[:32]
+        subprocess.run(
+            ["tmux", "new-session", "-d", "-s", name, "-x", "48", "-y", "30"],
+            timeout=5
+        )
+        return web.json_response({"success": True, "name": name})
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=500)
+
+async def delete_session_handler(request):
+    """Kill a tmux session."""
+    try:
+        name = request.match_info.get("name")
+        if not name:
+            return web.json_response({"error": "No session name"}, status=400)
+        subprocess.run(["tmux", "kill-session", "-t", name], timeout=5)
+        return web.json_response({"success": True})
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=500)
+
 def main():
     """Start the server."""
     # Check Tailscale
@@ -478,10 +565,15 @@ def main():
     app = web.Application()
     app.router.add_get("/", index_handler)
     app.router.add_get("/viewer", viewer_handler)
+    app.router.add_get("/dashboard", dashboard_handler)  # Session manager UI
     app.router.add_get("/terminal", websocket_handler)  # Shared tmux session
     app.router.add_get("/terminal/private", websocket_private_handler)  # Private session
     app.router.add_get("/health", health_handler)
     app.router.add_get("/info", info_handler)  # Autodiscovery endpoint
+    # Session management API
+    app.router.add_get("/api/sessions", list_sessions_handler)
+    app.router.add_post("/api/sessions", create_session_handler)
+    app.router.add_delete("/api/sessions/{name}", delete_session_handler)
     
     # Start Bonjour/Zeroconf advertising
     zeroconf_instance = None
@@ -525,3 +617,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

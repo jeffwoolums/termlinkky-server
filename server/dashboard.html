@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TermLinkky - Session Manager</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 800px; margin: 0 auto; }
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        h1::before { content: '🖥️'; }
+        .subtitle { color: #888; margin-bottom: 30px; }
+        .status-bar {
+            background: rgba(255,255,255,0.1);
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .status-dot {
+            width: 10px; height: 10px;
+            background: #4ade80;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .actions { display: flex; gap: 10px; }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .btn-primary { background: #4ade80; color: #000; }
+        .btn-primary:hover { background: #22c55e; transform: translateY(-2px); }
+        .btn-danger { background: #ef4444; color: #fff; }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-secondary { background: rgba(255,255,255,0.2); color: #fff; }
+        .btn-secondary:hover { background: rgba(255,255,255,0.3); }
+        .sessions-list { margin-top: 20px; }
+        .session-card {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+        }
+        .session-card:hover {
+            background: rgba(255,255,255,0.1);
+            border-color: #4ade80;
+        }
+        .session-info h3 {
+            font-size: 1.2rem;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .session-info p { color: #888; font-size: 0.9rem; }
+        .session-actions { display: flex; gap: 8px; }
+        .badge {
+            background: #4ade80;
+            color: #000;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge.inactive { background: #666; color: #fff; }
+        .new-session {
+            background: rgba(74, 222, 128, 0.1);
+            border: 2px dashed #4ade80;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .new-session:hover { background: rgba(74, 222, 128, 0.2); }
+        .new-session h3 { color: #4ade80; margin-bottom: 5px; }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: #1a1a2e;
+            padding: 30px;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 400px;
+        }
+        .modal h2 { margin-bottom: 20px; }
+        .input-group { margin-bottom: 15px; }
+        .input-group label { display: block; margin-bottom: 5px; color: #888; }
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            font-size: 1rem;
+        }
+        .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+        .modal-actions .btn { flex: 1; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>TermLinkky</h1>
+        <p class="subtitle">Session Manager</p>
+        
+        <div class="status-bar">
+            <div>
+                <span class="status-dot"></span>
+                <span>Server Running on <strong>100.70.5.93:8443</strong></span>
+            </div>
+            <div class="actions">
+                <button class="btn btn-secondary" onclick="refreshSessions()">🔄 Refresh</button>
+            </div>
+        </div>
+        
+        <div class="sessions-list" id="sessionsList">
+            <!-- Sessions loaded dynamically -->
+        </div>
+        
+        <div class="new-session" onclick="showNewSessionModal()">
+            <h3>+ New Session</h3>
+            <p>Create a new tmux session</p>
+        </div>
+    </div>
+    
+    <div class="modal" id="newSessionModal">
+        <div class="modal-content">
+            <h2>Create New Session</h2>
+            <div class="input-group">
+                <label>Session Name</label>
+                <input type="text" id="sessionName" placeholder="my-session" value="">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="createSession()">Create</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        async function refreshSessions() {
+            try {
+                const resp = await fetch('/api/sessions');
+                const data = await resp.json();
+                renderSessions(data.sessions);
+            } catch (e) {
+                console.error('Failed to load sessions:', e);
+            }
+        }
+        
+        function renderSessions(sessions) {
+            const list = document.getElementById('sessionsList');
+            if (!sessions || sessions.length === 0) {
+                list.innerHTML = '<p style="text-align:center;color:#666;padding:20px;">No active sessions</p>';
+                return;
+            }
+            list.innerHTML = sessions.map(s => `
+                <div class="session-card">
+                    <div class="session-info">
+                        <h3>
+                            📟 ${s.name}
+                            <span class="badge ${s.attached ? '' : 'inactive'}">${s.attached ? 'Active' : 'Detached'}</span>
+                        </h3>
+                        <p>${s.windows} window(s) • Created ${s.created}</p>
+                    </div>
+                    <div class="session-actions">
+                        <button class="btn btn-primary" onclick="openSession('${s.name}')">Open</button>
+                        <button class="btn btn-danger" onclick="killSession('${s.name}')">Kill</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function showNewSessionModal() {
+            document.getElementById('newSessionModal').classList.add('active');
+            document.getElementById('sessionName').value = 'session-' + Date.now().toString().slice(-4);
+        }
+        
+        function closeModal() {
+            document.getElementById('newSessionModal').classList.remove('active');
+        }
+        
+        async function createSession() {
+            const name = document.getElementById('sessionName').value.trim();
+            if (!name) return alert('Please enter a session name');
+            try {
+                await fetch('/api/sessions', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({name})
+                });
+                closeModal();
+                refreshSessions();
+            } catch (e) {
+                alert('Failed to create session: ' + e);
+            }
+        }
+        
+        async function killSession(name) {
+            if (!confirm(`Kill session "${name}"?`)) return;
+            try {
+                await fetch(`/api/sessions/${name}`, {method: 'DELETE'});
+                refreshSessions();
+            } catch (e) {
+                alert('Failed to kill session: ' + e);
+            }
+        }
+        
+        function openSession(name) {
+            window.open(`/viewer?session=${name}`, '_blank');
+        }
+        
+        // Initial load
+        refreshSessions();
+        // Auto-refresh every 5 seconds
+        setInterval(refreshSessions, 5000);
+    </script>
+</body>
+</html>
